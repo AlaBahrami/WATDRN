@@ -1,0 +1,329 @@
+ MESH 1.4 ---  (1813)
+ 
+ READING: MESH_drainage_database.r2c
+   REMARK: The number of river classes is adjusted to the maximum 'IAK' or 'IRVR' value. Consider adjusting the input files.
+   Total number of grids: 2175
+   Total number of grids inside the basin: 2174
+   Side length of grid: 11320.0000 m
+   Number of GRUs: 12
+   Number of land-based tiles: 15236
+   Number of river classes: 5
+ READING: MESH_input_soil_levels.txt
+   Number of soil layers: 4
+ READING: MESH_parameters_CLASS.ini
+ READING: MESH_parameters_hydrology.ini
+ READING: MESH_parameters.r2c
+   REMARK: 'dd' converted from 'km km -2' to 'm m-2'.
+   Active parameters in file: 18
+ 
+ READING: Resume run configuration
+   RESUMEFLAG is not active: RESUMEFLAG off
+   SAVERESUMEFLAG is not active: SAVERESUMEFLAG off
+ READING: MESH_input_streamflow.txt
+   Skipping 18141 records.
+   Number of streamflow gauges: 91
+             GAUGE              IY              JX            RANK        DA (km2)
+          08JA017               42              27            1591    15640.00
+          08JB002               44              25            1629    4019.550
+          08JB003               45              28            1722    6610.930
+          08JB008               44               9            1265    333.0460
+          08JC001               45              33            1771    25234.10
+          08JC002               44              40            1828    43203.90
+          08JD006               60              11            1215    373.5350
+          08JE001               48              31            1689    14381.30
+          08JE004               49              32            1507    457.2420
+          08KA001               39              63            1600    369.7650
+          08KA004               45              50            1832    17903.00
+          08KA005               39              65            1584    6949.950
+          08KA007               36              74             720    1630.510
+          08KA009               40              64             836    241.0660
+          08KA013               42              61            1602    1255.370
+          08KB001               45              45            1872    32425.80
+          08KB003               46              52            1787    4931.830
+          08KC001               46              44            1745    4154.750
+          08KD006               44              47            1762    2893.520
+          08KD007               45              49            1803    3425.290
+          08KH001               33              53            1534    6193.460
+          08KH006               35              48            1892    11707.30
+          08KH010               31              58            1085    709.2680
+          08KH019               30              54             784    514.0040
+          08KH020               30              58            1084    411.9160
+          08KH031               32              54            1531    2771.510
+          08KE016               36              45            1941    1589.390
+          08KG001               39              42            1916    12551.70
+          08LA001               26              65            1970    10453.20
+          08LA027               25              59             536    373.1450
+          08LB020               22              65            1997    1193.580
+          08LB038               29              70            1361    247.2720
+          08LB047               25              67            1955    4485.500
+          08LB064               21              64            2003    19572.50
+          08LB069               23              66            1810    642.9350
+          08LB078               24              63            1322    460.7130
+          08LC002               17              74            2009    4735.620
+          08LC003               15              76            1940    2011.400
+          08LC018               15              77            1888    1176.390
+          08LC039               15              74            1933    745.3640
+          08LC042               14              74            1921    592.0400
+          08LD001               20              68            1977    3278.340
+          08LE020               16              69            1862    1000.810
+          08LE021               18              71            2014    1563.840
+          08LE024               20              76            1994    911.8140
+          08LE027               23              74            2005    805.0630
+          08LE031               19              68            2033    15800.20
+          08LE112               18              68            1488    258.8360
+          08LF002               19              55            1947    5145.030
+          08LF007               20              59             979    504.1340
+          08LF023               18              63            2040    38026.00
+          08LF027               20              58            1854    955.8130
+          08LF051               15              54            2108    55545.00
+          08LG006               15              56            1991    7170.910
+          08LG007               14              59            1877    4369.310
+          08LG008               13              57            1768    760.8100
+          08LG010               13              59            1859    902.9950
+          08LG041               16              59             857    889.4260
+          08LG048               11              58             994    335.3640
+          08LG049               14              63            1374    1385.840
+          08LG065               14              61            1801    2933.280
+          08LG067               15              59             991    1208.440
+          08MA001               29              36            1307    7043.970
+          08MA002               25              32             435    2136.010
+          08MA003               23              37             249    1520.680
+          08MB005               27              44            1910    19458.60
+          08MB006               24              41             177    1040.660
+          08MB007               22              40              46    150.4860
+          08MC018               33              46            1956    114286.0
+          08MC040               29              50            1874    2169.850
+          08ME002               17              49            1668    844.1900
+          08ME003               18              49            2079    1084.020
+          08ME025               20              48            1864    625.2090
+          08ME027               18              42             704    287.0510
+          08ME028               19              40            1452    757.8950
+          08MF005                8              54            2139    216689.0
+          08MF035                6              51            2154    217692.0
+          08MF040               18              50            2101    154207.0
+          08MF065               12              50            2051    715.9310
+          08MF068                7              55            2116    744.1570
+          08MG001                7              50            2158    382.9560
+          08MG005               16              42            2088    2071.760
+          08MG013                8              51            2152    7813.740
+          08MH001                5              49            2161    1219.050
+          08MH016                5              54            1811    324.0450
+          08MH103                5              52            2070    632.3390
+          08MH002                7              43            2130    238.0530
+          08MH005                7              46            2121    197.9870
+          08MH024                6              47            2165    228239.0
+          08MH126                6              43            2173    231516.0
+          08MH147                9              47            2111    336.3240
+ READING: basin_shortwave.nc
+   Checking the spatial reference of the file.
+   ERROR: A CRS projection 'crs' was not found in the file (Code -49).
+   REMARK: Mapping the field 'RDRS_v2.1_P_FB_SFC' to the 'FSIN' variable.
+ READING: basin_longwave.nc
+   Checking the spatial reference of the file.
+   ERROR: A CRS projection 'crs' was not found in the file (Code -49).
+   REMARK: Mapping the field 'RDRS_v2.1_P_FI_SFC' to the 'FLIN' variable.
+ READING: basin_rain.nc
+   Checking the spatial reference of the file.
+   ERROR: A CRS projection 'crs' was not found in the file (Code -49).
+   REMARK: Mapping the field 'RDRS_v2.1_A_PR0_SFC' to the 'PRE' variable.
+ READING: basin_temperature.nc
+   Checking the spatial reference of the file.
+   ERROR: A CRS projection 'crs' was not found in the file (Code -49).
+   REMARK: Mapping the field 'RDRS_v2.1_P_TT_09944' to the 'TA' variable.
+ READING: basin_wind.nc
+   Checking the spatial reference of the file.
+   ERROR: A CRS projection 'crs' was not found in the file (Code -49).
+   REMARK: Mapping the field 'RDRS_v2.1_P_UVC_09944' to the 'UV' variable.
+ READING: basin_pres.nc
+   Checking the spatial reference of the file.
+   ERROR: A CRS projection 'crs' was not found in the file (Code -49).
+   REMARK: Mapping the field 'RDRS_v2.1_P_P0_SFC' to the 'PRES' variable.
+ READING: basin_humidity.nc
+   Checking the spatial reference of the file.
+   ERROR: A CRS projection 'crs' was not found in the file (Code -49).
+   REMARK: Mapping the field 'RDRS_v2.1_P_HU_09944' to the 'QA' variable.
+ 
+ 
+ The simulation starts at: 2000/09/01 00:00:00.000000
+ Checking the start dates of the input files...
+   Skipping 20 records in 'basin_shortwave.nc'.
+   Skipping 20 records in 'basin_longwave.nc'.
+   Skipping 20 records in 'basin_rain.nc'.
+   Skipping 20 records in 'basin_temperature.nc'.
+   Skipping 20 records in 'basin_wind.nc'.
+   Skipping 20 records in 'basin_pres.nc'.
+   Skipping 20 records in 'basin_humidity.nc'.
+ 
+ RUNCLASS36 is active.
+   PBSM (blowing snow) component is ACTIVE.
+   BASEFLOW component is ACTIVE.
+ Reached simulation end date.
+ 
+ End of run prognostic states
+    Number of GRUs:   12
+ 
+ Average values
+    GRU   1:
+      4.045     7.463     7.708    -1.629    -4.685     0.209  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.265     0.263     0.260     0.001     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.014     0.072     0.055     0.814   144.951    -0.545  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU   2:
+      4.455     7.057     7.042    -0.916    -1.277     0.000  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.248     0.248     0.247     0.000     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.023     0.107     0.015     0.819   129.669    -0.541  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU   3:
+      3.976     6.432     6.648     0.503    -2.979     0.000  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.260     0.258     0.256     0.001     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.107     0.084     0.050     0.801   142.388    -0.546  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU   4:
+      2.626     5.160     5.525    -3.221    -0.612     0.059  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.247     0.246     0.250     0.004     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.032     0.145     0.063     0.626   328.547    -0.545  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU   5:
+      2.531     5.105     5.467    -3.449    -0.624     0.059  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.245     0.245     0.249     0.004     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.028     0.154     0.086     0.623   332.530    -0.559  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU   6:
+      1.635     4.319     4.831    -4.940    -0.417     0.000  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.223     0.222     0.231     0.005     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.024     0.403     0.105     0.683   277.723    -0.522  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU   7:
+      2.465     5.254     5.489    -4.742    -0.239     0.000  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.274     0.262     0.255     0.007     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.028     0.259     0.259     0.630   367.495    -0.422  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU   8:
+      3.860     8.095     8.142     0.000    -0.334     0.000  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.243     0.270     0.278     0.000     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.000     0.000     0.004     0.570   389.753     0.975  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU   9:
+      1.801     5.712     6.486     0.000    -4.110     0.068  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.208     0.242     0.255     0.006     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.000     0.000     0.260     0.752   228.957     0.000  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU  10:
+      3.141     7.099     7.373     0.000    -1.164     0.000  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.167     0.285     0.304     0.001     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.000     0.000     0.012     0.612   355.428     0.000  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU  11:
+      4.590     8.989     8.300     0.000    -2.602     0.000  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.272     0.305     0.313     0.001     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.000     0.000     0.131     0.781   186.070     1.000  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU  12:
+     -1.384    -0.561    -1.003     0.000    -8.263    -0.001  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.000     0.000     0.000     0.000     0.000     0.000     0.013  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.000     0.000     2.730     0.753   324.094     1.000  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+ 
+ Minimum values
+    GRU   1:
+     -0.000     2.425     3.790   -20.884   -19.674     0.017  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.000     0.000     0.000     0.000     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.000     0.000     0.000     0.744   104.431    -0.872  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU   2:
+      0.000     2.668     3.315   -15.416   -12.597     0.000  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.110     0.128     0.144     0.000     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.000     0.000     0.000     0.748   100.566    -0.872  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU   3:
+     -0.000     2.296     3.193   -11.938   -14.330     0.000  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.143     0.144     0.148     0.000     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.000     0.000     0.000     0.590    93.110    -0.872  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU   4:
+     -0.000     0.981     2.168   -16.935    -3.678     0.059  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.000     0.000     0.000     0.000     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.000     0.000     0.000     0.500   126.197    -0.871  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU   5:
+     -0.000     0.960     2.168   -16.935    -3.678     0.059  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.000     0.000     0.000     0.000     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.000     0.000     0.000     0.500   126.197    -0.871  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU   6:
+     -0.000     2.135     2.407   -16.513    -2.581     0.000  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.110     0.122     0.155     0.000     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.000     0.000     0.000     0.500   131.213    -0.851  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU   7:
+     -0.000     2.444     2.790   -16.776    -1.912     0.000  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.215     0.184     0.172     0.000     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.000     0.000     0.000     0.503   154.487    -0.853  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU   8:
+      0.000     4.146     4.652     0.000    -1.348     0.000  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.151     0.186     0.181     0.000     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.000     0.000     0.000     0.555   378.385    -0.887  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU   9:
+     -0.000     2.184     2.650     0.000   -11.041     0.068  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.000     0.000     0.000     0.000     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.000     0.000     0.000     0.508   109.033     0.000  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU  10:
+     -0.000     2.356     2.799     0.000    -3.160     0.000  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.071     0.265     0.294     0.000     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.000     0.000     0.000     0.508   145.327     0.000  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU  11:
+     -0.000     3.105     1.623     0.000   -11.042     0.000  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.138     0.258     0.293     0.000     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.000     0.000     0.000     0.561   109.028     1.000  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU  12:
+     -6.350    -3.170    -2.459     0.000   -20.053    -0.000  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.000     0.000     0.000     0.000     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.000     0.000     0.000     0.500   112.629     1.000  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+ 
+ Maximum values
+    GRU   1:
+     12.188    14.598    13.058     8.864     0.000     0.556  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.430     0.357     0.361     0.033     0.000     0.000     0.071  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.443     3.792     5.213     0.839   822.264     1.000  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU   2:
+     11.073    12.348    10.854     7.757     0.000     0.000  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.433     0.353     0.353     0.021     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      1.071     4.491     1.567     0.840   169.297     1.000  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU   3:
+     12.164    13.407    11.802     9.310     0.000     0.000  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.432     0.355     0.358     0.026     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      1.983     4.663     4.749     0.839   330.449     1.000  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU   4:
+     10.658    12.345    10.846     8.088     0.000     0.059  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.432     0.353     0.353     0.249     0.000     0.000     0.061  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.986     7.464     9.857     0.839   922.370     1.000  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU   5:
+     10.619    12.345    10.846     8.088     0.000     0.059  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.432     0.353     0.353     0.249     0.000     0.000     0.061  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.985     7.464    34.638     0.839   922.370     1.000  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU   6:
+      6.463     7.614     6.963     4.412     0.000     0.000  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.326     0.320     0.344     0.227     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.591     7.464     2.567     0.838   454.824    -0.500  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU   7:
+     11.332    12.961    11.043     8.938     0.000     0.000  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.431     0.351     0.386     0.045     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.559     3.501     1.865     0.838   485.836     1.000  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU   8:
+     11.371    14.185    12.794     0.000     0.000     0.000  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.426     0.352     0.353     0.012     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.000     0.000     0.424     0.584   411.802     1.000  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU   9:
+     10.833    13.330    11.730     0.000     0.000     0.068  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.426     0.347     0.350     0.164     0.000     0.000     0.053  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.000     0.000    10.310     0.840   921.797     0.000  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU  10:
+     10.733    12.967    11.749     0.000     0.000     0.000  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.371     0.373     0.371     0.069     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.000     0.000     3.228     0.835   449.300     0.000  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU  11:
+     12.609    15.434    13.385     0.000     0.000     0.000  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.433     0.414     0.424     0.066     0.000     0.000     0.000  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.000     0.000     7.812     0.840   399.012     1.000  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+    GRU  12:
+      0.000     0.000    -0.336     0.000     0.000     0.001  !> TBAR(1:3)/TCAN/TSNO/TPND
+      0.000     0.000     0.000     0.000     0.000     0.000     0.091  !> THLQ(1:3)/THIC(1:3)/ZPND
+      0.000     0.000    79.670     0.839   591.838     1.000  !> RCAN/SNCAN/SNO/ALBS/RHOS/GRO
+ 
+ Basin water balance end of run totals (mm)
+   Total precipitation              =   61.17416
+   Total evapotranspiration         =   39.07405
+   Total runoff                     =   80.75752
+     Overland         =   7.891946
+     Lateral          =   1.456972
+     Drainage (soil)  =   71.40863
+   Change in storage                =  -28.44202
+     Initial          =   1193.502
+     Final            =   1165.060
+ 
+ 
+ Program has terminated normally.
+ 
+ Time = 7.380729 minutes.
