@@ -138,6 +138,16 @@ C                               CLASS VERSION 2.0 (WITH CANOPY).
 C     * APR 11/89 - D.VERSEGHY. LAND SURFACE WATER BUDGET CALCULATIONS.
 C                                                                                 
       USE FLAGS
+!-------------------------------------------------------------------------
+! modi here
+	  
+#ifdef NETCDF
+      use netcdf
+	  !use nc_io_watdrn
+	  use nc_io_file
+#endif
+
+!--------------------------------------------------------------------------
 C
       IMPLICIT NONE
 C
@@ -323,6 +333,29 @@ C     * PDMROF
      5     UMQ      (ILG),
      6     FSTRCS   (ILG),    FSTRC(ILG),    FSTRG(ILG),   FSTRGS(ILG),
      *     CSTRCS(ILG), CSTRC(ILG), CSTRG(ILG), CSTRGS(ILG)
+
+!---------------------------------------------------------------------
+! ! 	  NB: Modi here added some variables here for netcef writing 
+! !     i/o local variables 
+ 	   integer :: iun_cs = 20, iun_gs = 21, iun_c = 22, iun_g = 23
+	   integer :: iun_p  = 24	
+	   character(len=*), parameter :: fpath_cs = 'THLQCS.nc'
+	   character(len=*), parameter :: fpath_gs = 'THLQGS.nc'
+	   character(len=*), parameter :: fpath_c  = 'THLQC.nc'
+	   character(len=*), parameter :: fpath_g  = 'THLQG.nc'
+	   character(len=*), parameter :: fpath_p  = 'parameter.nc'
+	   
+	   logical :: init = .true.	
+		
+	   integer :: time_varidcs = 30, time_varidgs = 31 
+	   integer :: time_varidc  = 32, time_varidg  = 33 
+	   integer :: THLQ_varidcs = 40, THLQ_varidgs = 41 
+	   integer :: THLQ_varidc  = 42, THLQ_varidg  = 43 
+	   integer :: time_varidp  = 50, THLQ_varidp  = 51 
+	   
+	   integer ierr	
+	   integer :: count = 0		   
+!-----------------------------------------------------------------------
 C
 C     * PBSM
 C
@@ -333,7 +366,7 @@ C
       UMQC  = 0.0
       UMQG  = 0.0
       UMQGS = 0.0
-C
+C	  
 C-----------------------------------------------------------------------
 C     * PREPARATION.
 C
@@ -454,13 +487,48 @@ C
      1                SUBFLW, TSUBFL, RUNFCS, TRNFCS, FCS, ZPLMCS,
      2                XSLOPE, XDRAINH, MANNING_N, DD, KSAT, TBRWCS,
      3                DELZW, THPOR, THLMIN, BI, DODRN, DOVER, DIDRN,
-     4                ISAND, IWF, IG, ILG, IL1, IL2, BULK_FC)
-C
-C	 * get the outputs here  
-C 
-	 
-	 WRITE(*,*) THLQCS	 
-	 
+     4                ISAND, IWF, IG, ILG, IL1, IL2, BULK_FC)  	  	
+!-----------------------------------------------------------------------
+! Extract variables for canopy over snow (CS)  
+	  ! Initialize the variables to be written (dimension, attributes, etc) 
+	  if (init) then  
+		! Define time-variant variables 
+		call nc4_init_file(fpath_cs, ILG, 34, 
+	1					   iun_cs,
+	2					   THLQ_varidcs, time_varidcs)	
+	  
+	!-----------------------------------------------------------------------
+		! Define time-invariant parameters 
+	    call nc4_init_file(fpath_p, ILG, 30, 
+	1					   iun_p,
+	2					   THLQ_varidp, time_varidp) 
+	  
+	    ! Write time-invariant parameters
+	    call nc4_add_data_file(iun_p, ILG, 30, 
+	1						   THLQ_varidp, time_varidp, 
+	2						   (/XSLOPE, XDRAINH, MANNING_N, DD, KSAT, 
+	3						   DELZW, THPOR, THLMIN, BI,
+	4						   real(ISAND), real(IWF), BULK_FC/) , count)
+
+        ! close time-invariant parameters
+		call nc4_close_fille(iun_p)	
+	!------------------------------------------------------------------------  
+	  end if 		 
+	  
+	  ! Write and append data each time step  
+	  call nc4_add_data_file(iun_cs, ILG, 34, 
+	1						 THLQ_varidcs, time_varidcs, 
+	2						 (/THLQCS, THICCS, ZPNDCS, TPNDCS,
+	3						  OVRFLW, TOVRFL, SUBFLW, TSUBFL,
+	4						  RUNFCS, TRNFCS, FCS, ZPLMCS,
+	5						  TBRWCS, DODRN, DOVER, DIDRN/) , count) 
+	  
+	  ! close the file after in the last time step 
+	  !+ todo: the last counter should be set based on input files  
+	  if ( count == 30*48 -1) then  
+		  call nc4_close_fille(iun_cs)
+	  end if   
+C-----------------------------------------------------------------------
           CALL TMCALC(TBARCS,THLQCS,THICCS,HCPCS,TPNDCS,ZPNDCS,
      1                TSNOCS,ZSNOCS,ALBSCS,RHOSCS,HCPSCS,TBASCS,
      2                OVRFLW,TOVRFL,RUNFCS,TRNFCS,HMFG,HTC,HTCS,
@@ -553,6 +621,31 @@ C
      2                XSLOPE, XDRAINH, MANNING_N, DD, KSAT, TBRWGS,
      3                DELZW, THPOR, THLMIN, BI, DODRN, DOVER, DIDRN,
      4                ISAND, IWF, IG, ILG, IL1, IL2, BULK_FC)
+C-----------------------------------------------------------------------
+! Extract variables for snow over ground (GS)  
+	  ! Initialize the variables to be written (dimension, attributes, etc) 
+	  if (init) then  
+		! Define time-variant variables 
+		call nc4_init_file(fpath_gs, ILG, 34, 
+	1					   iun_gs,
+	2					   THLQ_varidgs, time_varidgs)	  
+	  end if 		
+	  
+	  ! Write and append data each time step  
+	  call nc4_add_data_file(iun_gs, ILG, 34, 
+	1						 THLQ_varidgs, time_varidgs, 
+	2						 (/THLQGS, THICGS, ZPNDGS, TPNDGS,
+	3						  OVRFLW, TOVRFL, SUBFLW, TSUBFL,
+	4						  RUNFGS, TRNFGS, FGS, ZPLMGS,
+	5						  TBRWGS, DODRN, DOVER, DIDRN/) , count) 
+	  
+	  
+	  ! close the file after in the last time step 
+	  !+ todo: the last counter should be set based on input files  			   
+	  if ( count == 30*48 -1) then  
+		  call nc4_close_fille(iun_gs)
+	  end if 
+C-----------------------------------------------------------------------
           IF(NLANDI.NE.0) THEN
               CALL ICEBAL(TBARGS,TPNDGS,ZPNDGS,TSNOGS,RHOSGS,ZSNOGS,
      1                    HCPSGS,ALBSGS,HMFG,HTCS,HTC,WTRS,WTRG,GFLXGS,
@@ -650,6 +743,41 @@ C
      2                XSLOPE, XDRAINH, MANNING_N, DD, KSAT, TBARWC,
      3                DELZW, THPOR, THLMIN, BI, DODRN, DOVER, DIDRN,
      4                ISAND, IWF, IG, ILG, IL1, IL2, BULK_FC)
+C----------------------------------------------------------------------- 
+! Extract variables for canopy over bare ground (C)
+	  !NB: I placed the counter here as Canopy is called first
+	  ! Counter and switch flag used for writing variables  
+	  count = count + 1	
+	  if (count == 1) then 
+		init = .true.
+	  else
+	    init = .false.
+	  end if 
+      
+	! Initialize the variables to be written (dimension, attributes, etc) 
+	  if (init) then  
+		! Define time-variant variables 
+		call nc4_init_file(fpath_c, ILG, 34, 
+	1					   iun_c,
+	2					   THLQ_varidc, time_varidc)	
+	  end if 		
+	  
+	  ! Write and append data each time step  
+	  call nc4_add_data_file(iun_c, ILG, 34, 
+	1						 THLQ_varidc, time_varidc, 
+	2						 (/THLQCO, THICCO, ZPONDC, TPONDC,
+	3						  OVRFLW, TOVRFL, SUBFLW, TSUBFL,
+	4						  RUNFC, TRUNFC, FC, ZPLIMC,
+	5						  TBARWC, DODRN, DOVER, DIDRN/) , count) 
+	   
+	  ! ! close the file after in the last time step 
+	  ! !+ todo: the last counter should be set based on input files  
+	  ! NB: the number of time steps for C is one time more compared 
+	  ! to other subareas. 
+	  if ( count == 30*48) then  
+		  call nc4_close_fille(iun_c)
+	  end if 	  
+C-----------------------------------------------------------------------
           CALL TMCALC(TBARC,THLQCO,THICCO,HCPCO,TPONDC,ZPONDC,
      1                TSNOWC,ZSNOWC,ALBSC,RHOSC,HCPSC,TBASC,
      2                OVRFLW,TOVRFL,RUNFC,TRUNFC,HMFG,HTC,HTCS,
@@ -723,6 +851,32 @@ C
      2                XSLOPE, XDRAINH, MANNING_N, DD, KSAT, TBARWG,
      3                DELZW, THPOR, THLMIN, BI, DODRN, DOVER, DIDRN,
      4                ISAND, IWF, IG, ILG, IL1, IL2, BULK_FC)
+C-----------------------------------------------------------------------
+! ! Extract variables for bare ground (G)  
+	  ! Initialize the variables to be written (dimension, attributes, etc) 
+	  if (init) then  
+		! Define time-variant variables 
+		call nc4_init_file(fpath_g, ILG, 34, 
+	1					   iun_g,
+	2					   THLQ_varidg, time_varidg)	 
+	  end if 		
+	  
+	  ! Write and append data each time step  
+	  call nc4_add_data_file(iun_g, ILG, 34, 
+	1						 THLQ_varidg, time_varidg, 
+	2						 (/THLQGO, THICGO, ZPONDG, TPONDG,
+	3						  OVRFLW, TOVRFL, SUBFLW, TSUBFL,
+	4						  RUNFG, TRUNFG, FG, ZPLIMG,
+	5						  TBARWG, DODRN, DOVER, DIDRN/) , count) 
+	  
+	  ! close the file after in the last time step 
+	  !+ todo: the last counter should be set based on input files  
+	  ! NB: the number of time steps for G is one time more compared 
+	  ! to other subareas. 
+	  if ( count == 30*48) then  
+		  call nc4_close_fille(iun_g)
+	  end if 
+C-----------------------------------------------------------------------
           IF(NLANDI.NE.0) THEN
               CALL ICEBAL(TBARG,TPONDG,ZPONDG,TSNOWG,RHOSG,ZSNOWG,
      1                    HCPSG,ALBSG,HMFG,HTCS,HTC,WTRS,WTRG,GFLXG,
@@ -996,4 +1150,4 @@ C
       CALL CGROW(GROWTH,TBAR,TA,FC,FCS,ILG,IG,IL1,IL2,JL)
 C                                                                                  
       RETURN                                                                      
-      END        
+      END  
