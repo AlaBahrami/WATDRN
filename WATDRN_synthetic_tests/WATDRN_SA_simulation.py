@@ -404,14 +404,64 @@ axs[1].grid(alpha=0.5)
 plt.savefig(outdir+'WATDRN_synthetic.png', format='png', dpi=300)
 plt.close()
 
-#%% calculate some tests based on derivitation from Martyn's paper 
-# eq.(33)
-tr = ((porosity*totalLength1)/(kH*TOPMODEL_exp))*(S_Soulis1[239]/Sc)**(1-TOPMODEL_exp)
-tq = tr + delt
-# eq.(32)
-S2 = Sc * ((porosity*totalLength1)/(kH*TOPMODEL_exp*tq))**(1/(TOPMODEL_exp-1))
-print (MM_PER_M * np.abs(S2 - S_Soulis1[239]) * porosity * soilDepth/delt)
+#%% compare WATDRN stand-alone with WATDRN derived from eqs(32) and eqs(33) of paper
+qx1 = np.zeros(p)
+qx2 = np.zeros(p)
 
+for i in range(p):
+    # for Hillslope with totalLength1 
+    # eq.(33)
+    tr = ((porosity*totalLength1)/(kH*TOPMODEL_exp))*(S_Soulis1[i]/Sc)**(1-TOPMODEL_exp)
+    tq = tr + delt
+    # eq.(32)
+    S2 = Sc * ((porosity*totalLength1)/(kH*TOPMODEL_exp*tq))**(1/(TOPMODEL_exp-1))
+    qx1[i] = MM_PER_M * np.abs(S2 - S_Soulis1[i]) * porosity * soilDepth/delt
+    
+    # for Hillslope with totalLength2
+    # eq.(33)
+    tr = ((porosity*totalLength2)/(kH*TOPMODEL_exp))*(S_Soulis2[i]/Sc)**(1-TOPMODEL_exp)
+    tq = tr + delt
+    # eq.(32)
+    S2 = Sc * ((porosity*totalLength2)/(kH*TOPMODEL_exp*tq))**(1/(TOPMODEL_exp-1))
+    qx2[i] = MM_PER_M * np.abs(S2 - S_Soulis2[i]) * porosity * soilDepth/delt
+    
+figure,axs = plt.subplots(1,2, figsize= (20,20))
+
+axs[0].plot(time_sim, subflw1, '#ff0000', label='Stand-alone WATDRN')
+axs[0].text(14.8, 1.05, '$X_{L}$ = 50 m')
+axs[0].legend(fontsize = 14, loc = 'upper left',frameon=False)
+
+axs[0].plot(time_sim, qx1, '#00007fe6', label='Explicit WATDRN')
+axs[0].legend(fontsize = 14, loc = 'upper left',frameon=False)
+
+axs[1].plot(time_sim, subflw2, '#ff0000', label='Stand-alone WATDRN')
+axs[1].text(14.8, 1.05, '$X_{L}$ = 10 m')
+axs[1].legend(fontsize = 14, loc = 'upper left',frameon=False)
+
+axs[1].plot(time_sim, qx2, '#00007fe6', label='Explicit WATDRN')
+axs[1].legend(fontsize = 14, loc = 'upper left',frameon=False)
+
+# set axes and title 
+axs[0].set_title('WATDRN simulaiton')
+axs[1].set_title('WATDRN simulaiton')
+
+axs[0].set_xlabel('Time (days)')
+axs[1].set_xlabel('Time (days)')
+
+axs[0].set_ylabel('Hillslope outflow (mm $h^-1$)')
+axs[1].set_ylabel('Hillslope outflow (mm $h^-1$)')
+
+axs[0].set_xlim(0,duration)
+axs[0].set_ylim(0,2.5)
+axs[0].grid(alpha=0.5)
+
+axs[1].set_xlim(0,duration)
+axs[1].set_ylim(0,2.5)
+axs[1].grid(alpha=0.5)
+
+plt.savefig(outdir+'WATDRN_SA_explicit.png', format='png', dpi=300)
+plt.close()    
+        
 #%% simulate WATDRN based on different xdrainh values 
 # the purpose is to find out how the outflow is responds based on changing values of xdrainh
 
