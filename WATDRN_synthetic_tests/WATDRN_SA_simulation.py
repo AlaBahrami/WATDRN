@@ -98,6 +98,70 @@ def Soulis_upscaling_outflow (qForce, kH, xL, Scrit, zSoil, phi, eta):
     
     return sSave, qSave, tVec
 
+#%% WATDRN storage routine 
+# the purpose of this script is to simulate storage required for simulating WATDRN stand-alone 
+def WATDRN_storage(qForce, bcoef,grksat,delt):
+    
+    #define the time step
+    nForce = len(qForce)
+    
+    #c and c factors
+    c    = 2.*bcoef+3.
+    cm1  = c-1.
+    c2m1 = 2.*c-1.
+    
+    # bulk saturation at critical time
+    asatc = 1.-1./c
+    
+    #initialize storage at initialized time 
+    asat0 = 0
+    
+    #save variables
+    sSave = np.zeros(nForce)
+    
+    # loop through points on the characteristic curve 
+    for iForce in range(nForce):
+        
+        # layer average saturation asat0 may be greater than 1
+        #e.g. frost heave but it is not possible for wat_drain
+        asat00 = np.min((1., asat0))
+        #assess if seepage face is saturated at initial time
+        satspf = asat00 >= asatc
+        
+        if (satspf):
+          #saturated seepage face at initial time:
+          # compute t0/tc
+          ratiot = c*(1.-asat00)
+          # normalized baseflow rate
+          basflw = 1.-c*c/c2m1*(1.-asat00)
+          #the fraction of the surface that is saturated at t0
+          #varies linearly with t0/tc
+          satsfc= 1.-ratiot
+        else:
+          #unsaturated seepage face at initial time:
+          #calculate tc/t0 instead of t0 to avoid overflow 
+          ratiot = (asat00/asatc)**cm1
+          #normalized baseflow rate
+          basflw = cm1/c2m1*ratiot*asat00/asatc 
+          # the fraction of the surface that is saturated at t0 is zero
+          satsfc = 0.
+                
+        #Compute baseflow in m from normalized baseflow rate
+        # modification by Ala  : I removed the mutiplication by delt
+        #basflw = grksat*basflw*delt
+        basflw = grksat*basflw
+        
+        # update sturation at the end of time step based on mass balance 
+        asat00 = asat00 + (qForce[iForce] - basflw) * delt
+        
+        # set asat0 of next time step 
+        asat0  = asat00
+        
+        # save data
+        sSave[iForce]   = asat00
+         
+    return sSave
+
 #%% WATDRN routine 
 # NB: as this experiment is run over one tile, the loop over tiles has been removed  
 def WATDRN(delzw,bcoef,thpora,grksat,grkeff,asat0,iwf, \
@@ -243,6 +307,7 @@ def WATDRN(delzw,bcoef,thpora,grksat,grkeff,asat0,iwf, \
     subflw = (asat00-asat1)*thpora*delzw
     
     return asat1,subflw,basflw,satsfc
+
 
 #%% exav
 #**********************************************************************
@@ -404,6 +469,39 @@ axs[1].grid(alpha=0.5)
 plt.savefig(outdir+'WATDRN_synthetic.png', format='png', dpi=300)
 plt.close()
 
+#%% plot WATDRN baseflow with lateral flow to see how they are performing 
+figure,axs = plt.subplots(1,1, figsize= (20,20))
+
+axs.plot(time_sim, subflw1, label = 'subflw')
+axs.plot(time_sim, basflw1, label = 'basflw')
+axs.plot(time_sim, basflw1+subflw1, label = 'subflw + basflw')
+axs.text(14.8, 1.05, '$X_{L}$ = 50 m')
+
+axs.grid(alpha=0.5)
+axs.legend(fontsize = 14, loc = 'upper left',frameon=False)
+
+# set axes and title 
+axs.set_title('WATDRN stand-alone simulaiton')
+axs.set_xlim(0,duration)
+axs.set_ylim(0,2.5)
+
+plt.savefig(outdir+'WATDRN_flow.png', format='png', dpi=300)
+plt.close()
+
+#%% calling the WATDRN storage function and compare it Soulis_upscaling_outflow numerical solution
+S_WATDRN = WATDRN_storage(precip, bij,ksat,delt)
+
+fig, axs = plt.subplots(1,1, figsize=(20,20))
+axs.plot(time_sim , S_Soulis1, label = 'storage based Soulis upscaling')
+axs.plot(time_sim , S_WATDRN, label = 'storage based on WATDRN baseflow')
+
+axs.legend(fontsize = 14, loc = 'upper left',frameon=False)
+
+# set axis 
+axs.set_xlim(0,duration)
+axs.set_ylim(0,1)
+axs.grid(alpha=0.5)
+
 #%% compare WATDRN stand-alone with WATDRN derived from eqs(32) and eqs(33) of paper
 qx1 = np.zeros(p)
 qx2 = np.zeros(p)
@@ -461,6 +559,18 @@ axs[1].grid(alpha=0.5)
 
 plt.savefig(outdir+'WATDRN_SA_explicit.png', format='png', dpi=300)
 plt.close()    
+
+#%% obtain S based on MoC
+# S_save = np.zeros(240)
+
+# for i, q in enumerate(precip[0:240]):
+#         if q > 0:
+#             tc = i+1
+#             Smax = (tc * q)/(porosity * soilDepth)
+#             # rewrite eq.(18) based on equation 20
+#             S = ((kinematic_dist * q)/(kH * soilDepth))**(1/TOPMODEL_exp)
+#             S[S>Smax]=Smax
+#             S_save[i] = np.max(S)
         
 #%% simulate WATDRN based on different xdrainh values 
 # the purpose is to find out how the outflow is responds based on changing values of xdrainh
