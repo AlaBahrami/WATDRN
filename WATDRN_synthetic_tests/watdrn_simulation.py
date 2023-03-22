@@ -10,8 +10,11 @@ See also: https://github.com/CH-Earth/laughTests/tree/master/lt4_wigmosta1994
 
 last modified: 03/14/2023
               1) include WATDRN stand-alone routines 
-              2) add WATDRN simulations to Moc and Soulis' upscaling method 
-    
+              2) add WATDRN simulations to MoC and Soulis' upscaling method 
+                
+              03/21/2023
+              1) Add WATDRN storage required for running stand-alone WATDRN for 
+                synthetic test based on section 2.3.2 and 2.4 paper of Martyn et al. (2023)
 """
 #%% import modules 
 import matplotlib
@@ -106,6 +109,8 @@ grkeff2         = kl*xslope*2.0*Dd2/(1+xslope**2)  # [hour^-1]
 
 #thpor_avail[i] = np.max((thlmin[i,j],thpor_avail[i]))
 thpor_avail = porosity 
+
+time_sim = np.linspace(0, duration, len(precip))
 
 #%% # Set font labels
 font = {'family' : 'Times New Roman',
@@ -380,6 +385,48 @@ def TOPMODEL_upscaling_outflow_saturated (qForce, kH, xL, zSoil, phi, nm, m, n):
         tVec[iForce]    = xTime 
     
     return zSave, qSave, tVec
+#%% WATDRN storage 
+def WATDRN_storage (qForce, kH, xL, zSoil, phi, eta, dt):
+    
+    # this is based on native WATDRN algorithm 
+    #define the time step
+    nForce = len(qForce)
+    
+    #initialize (mx points distributed across the full space)
+    S0 = 1.e-8
+    
+    #save variables
+    sWATDRN = np.zeros(nForce)
+    qWATDRN = np.zeros(nForce)
+    
+    # get temporally constant variables
+    tf = phi*xL/(kH*eta) # time that the drying front reaches the bottom of the hillslope
+    Sc = 1.0 - 1.0/eta   # spatially-averaged relatve storage at time tf
+    
+    # loop through points on the characteristic curve 
+    for iForce in range(nForce):
+        
+        # compute the time required for spatially-averaged storage to reach the state from the host land model
+        # - only consider case 2: the toe of the hillslope is not fully saturated
+        tr = tf*(S0/Sc)**(1.0 - eta)
+        
+        # compute the storage at the time tr + Delta t
+        t1 = tr + dt
+        S1 = Sc*(tf/t1)**(1.0/(eta - 1.0))
+        
+        # compute the lateral flow from mass balance
+        qx = phi*zSoil*(S0 - S1)/dt
+        #print, iForce, S0, S1, [qSave[iForce], qx]*1000.d
+        
+        #update states
+        Sn = S0 + (qForce[iForce] - qx)/(zSoil*phi)
+        S0 = Sn
+        
+        # save data
+        sWATDRN[iForce]   = S0
+        qWATDRN[iForce]   = qx
+    
+    return sWATDRN, qWATDRN  
 
 #%% WATDRN routine 
 # NB: as this experiment is run over one tile, the loop over tiles has been removed  
@@ -552,25 +599,6 @@ def exav(x):
         exav = 1.0-x/2.0
     return exav
 
-#%% Purpose is to find out how Xl and Hl during the rising of hydrograph
-# qKin1, qFall1, texit1, xL, hL  = kinematic_runoff(surfHydCond, soilDepth, TOPMODEL_exp, porosity, hillWidth * totalLength1, 
-#                                          hillWidth, totalLength1, hill_dist1,  precip)
-# # ploting until rain stops 
-# fig,axs = plt.subplots(1,1, figsize=(20,20))
-# axs.plot(xL[0:240],hL[0:240])
-
-# # set axes
-# axs.set_xlim(0,totalLength1)
-# axs.set_ylim(0, soilDepth)
-
-# # set titles 
-# axs.set_xlabel('Xl [m]')
-# axs.set_ylabel('Water table height [m]')
-# axs.set_title('Time series of water table height changes during 10 days ')
-
-# plt.savefig(outdir+'WaterTable.png', format='png', dpi=300)
-# plt.close()
-
 #%% Figure 3- Rainfall pulse 
 itime1 = 24
 itime2 = 2*24
@@ -690,8 +718,6 @@ plt.close()
 #%% Figure 5
 # calculate the spatially-averaged relative saturation at the critical time 
 
-duration  = 20 # [hours]
-
 # intialize spatially-averaged relative saturation 
 S = np.linspace(0, 1, num=100)
 
@@ -715,6 +741,11 @@ S_Soulis1, qx_soulis1, time_sim = Soulis_upscaling_outflow (precip, kH, totalLen
 
 S_Soulis2, qx_soulis2, time_sim = Soulis_upscaling_outflow (precip, kH, totalLength2, Sc, soilDepth, porosity, TOPMODEL_exp)
 
+
+# calling simulated WATDRN storage required for running Stand-alone WATDRN 
+sWATDRN1, qWATDRN1 = WATDRN_storage (precip, kH, totalLength1, soilDepth, porosity, TOPMODEL_exp, delt)
+sWATDRN2, qWATDRN2 = WATDRN_storage (precip, kH, totalLength2, soilDepth, porosity, TOPMODEL_exp, delt)
+
 #---------------------------------------
 # calling WATDRN routine  
 # variables related to WATDRN routine 
@@ -736,7 +767,7 @@ satfc2   = np.zeros(p)
 # loop over entire time window of simulation for two hillslope lengths 
 for i in range(p):
     # hillslope with length of totalLength1
-    [asat_t1[i], subflw1[i], basflw1[i], satfc1[i]] = WATDRN (delzw,bij,thpor_avail,ksat,grkeff1,S_Soulis1[i], IWF,\
+    [asat_t1[i], subflw1[i], basflw1[i], satfc1[i]] = WATDRN (delzw,bij,thpor_avail,ksat,grkeff1,sWATDRN1[i], IWF,\
                                                              ILG,IL1,IL2,1,delt)
     
     # NB: in the source code of WATDRN the lateral flow is not devided by time step
@@ -744,11 +775,10 @@ for i in range(p):
 
     
     # hillslope with length of totalLength2    
-    [asat_t2[i], subflw2[i],basflw2[i],satfc2[i]] = WATDRN (delzw,bij,thpor_avail,ksat,grkeff2,S_Soulis2[i],IWF,\
+    [asat_t2[i], subflw2[i],basflw2[i],satfc2[i]] = WATDRN (delzw,bij,thpor_avail,ksat,grkeff2,sWATDRN2[i],IWF,\
                                                             ILG,IL1,IL2,1,delt)
     
     subflw2[i] = MM_PER_M * subflw2[i]/delt               # convert to [mm hour^-1]
-
 
 #---------------------------------------
 # plot results 
@@ -776,7 +806,7 @@ axs[1].plot(tExit1/24, MM_PER_M * qFall1, '#00007fe6')
 
 axs[1].plot(time_sim, MM_PER_M * qx_soulis1, '#47b1e2', label='Soulis upscaling method')
 
-axs[1].plot(time_sim, subflw1, '#ff0000', label='WATDRN')
+axs[1].plot(time_sim, subflw1, '#ff0000', linestyle = '--',label='WATDRN Stand-alone')
 
 axs[1].text(14.8, 1.05, '$X_{L}$ = 50 m')
 axs[1].legend(fontsize = 14, loc = 'upper left',frameon=False)
@@ -786,7 +816,7 @@ axs[2].plot(tExit2/24, MM_PER_M * qFall2, '#00007fe6')
 
 axs[2].plot(time_sim, MM_PER_M * qx_soulis2, '#47b1e2', label='Soulis upscaling method')
 
-axs[2].plot(time_sim, subflw2, '#ff0000', label='WATDRN')
+axs[2].plot(time_sim, subflw2, '#ff0000', linestyle = '--', label='WATDRN Stand-alone')
 
 axs[2].text(14.8, 1.05, '$X_{L}$ = 10 m')
 axs[2].legend(fontsize = 14, loc = 'upper left',frameon=False)
@@ -806,25 +836,7 @@ axs[2].grid(alpha=0.5)
 
 plt.savefig(outdir+'Figure5_WATDRN.png', format='png', dpi=300)
 plt.close()
-
-#%% a test simulation based on WATDRN  
-# deltat = 30/60    #[hours]
-# qx_soulis = np.zeros(1000)
-# for i in range(1000):
-#     if (i == 0):
-#         S1 = 0.4038
-#         print('Initial state')
-        
-#     tr  = tf * (S1/Sc)**(1 - TOPMODEL_exp)
-#     tq = tr + deltat 
-    
-#     # eq. (32)
-#     S2 = Sc * ((totalLength1 * porosity)/(tq * kH * TOPMODEL_exp)) **(1/(TOPMODEL_exp -1))
-#     qx_soulis[i] = MM_PER_M * porosity * abs(S2 -S1)/deltat
-#     S1 = S2
-    
-# plt.plot(qx_soulis)    
-    
+       
 #%% figure 6 Behavior of Soulis’ upscaling method applied to saturated flow problems  
 # calculate hillslope outflow based on water table depth 
 nm         = soilDepth                                        #[m]
