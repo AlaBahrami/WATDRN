@@ -52,6 +52,65 @@ kH = surfHydCond * tan_slope               #[m hour^-1]
 # time duration of simulation  
 duration  = 20                              #[days]            
 
+#%% set variable and parameters required for WATDRN 
+# parameters required for WATDRN
+# drainage density 
+# this is baed on Soulis et al (2000) and Mekonnen's draft 
+Dd1 = 1/(2*totalLength1)                           # [1/m]
+Dd2 = 1/(2*totalLength2)                           # [1/m]
+
+# obtain b coefficient  based on Clapp-Hornberger connectivity index  
+bij = (TOPMODEL_exp -3)/2                            # [-]
+
+# calculating xlambda explicitly by equating eq.(21) from Martyn's paper and eq.(24) from Mekonnen's draft 
+# NB: in MESH implementation, the xlambda decay factor is derived from xdrainh
+lambdda = - np.log(1+tan_slope**2)/(soilDepth)     #[1/m]
+lambdda = - lambdda                                # to be consistent with fortran code 
+
+# time step 
+delt = 1.0                                           # [hour]
+#---------------------------------------
+# initialize variables
+# NB: I assumed soil as one single layer 
+ILG = 1                                     # [-] number of tiles 
+IG  = 1                                     # [-] number of soil layers
+IL1 = 1                                     # [-] index of first tile
+IL2 = 1                                     # [-] index of last tile  
+IWF = 1                                     # [-] FLAG governing flat or slope CLASS. IWF = 0 activates flat CLASS
+ztop   = 0                                  # [m]
+delzw  = soilDepth                          # [m]
+ksat   = surfHydCond                        # [m hour^-1]
+xslope = tan_slope                          # [-]
+
+# parameter - will be used to compute xdrainh (the fractional change in horizontal
+# conductivity in a depth change h0) in Vincent's new formula.
+h0 = 1.0 
+
+# Integration of saturated conductivity across the layer -> kl
+# Important note :xlambda is derived based on function of slope and soil Depth instead of xdrainh 
+#xlambda        = -np.log(xdrainh[i])/h0 #  
+ktop           = ksat * np.exp(lambdda*ztop)      #  [m hour^-1]
+
+# Important note : I commented calculation of kl using exav functions as it 
+# reduces the precision of calculation of grkeff
+#kl             = ktop * exav(lambdda*delzw)       #  [m hour^-1]
+kl             = ktop * np.exp(lambdda*delzw)       #  [m hour^-1]
+
+# calculate grkeff for two hillslope lengths 
+grkeff1         = kl*xslope*2.0*Dd1/(1+xslope**2)  # [hour^-1]
+grkeff2         = kl*xslope*2.0*Dd2/(1+xslope**2)  # [hour^-1]
+
+#thpor_avail[i] = np.max((thlmin[i,j],thpor_avail[i]))
+thpor_avail = porosity 
+
+time_sim = np.linspace(0, duration, len(precip))
+
+#%% # Set font labels
+font = {'family' : 'Times New Roman',
+         'weight' : 'bold',
+         'size'   : 18}
+matplotlib.rc('font', **font)
+
 #%% Soulis's upscaling outflow (section 2.5)
 # NB: This function is based on Martyn's solution    
 def Soulis_upscaling_outflow (qForce, kH, xL, Scrit, zSoil, phi, eta):
@@ -98,69 +157,48 @@ def Soulis_upscaling_outflow (qForce, kH, xL, Scrit, zSoil, phi, eta):
     
     return sSave, qSave, tVec
 
-#%% WATDRN storage routine 
-# the purpose of this script is to simulate storage required for simulating WATDRN stand-alone 
-def WATDRN_storage(qForce, bcoef,grksat,delt):
+#%% WATDRN storage 
+def WATDRN_storage (qForce, kH, xL, zSoil, phi, eta, dt):
     
+    # this is based on native WATDRN algorithm 
     #define the time step
     nForce = len(qForce)
     
-    #c and c factors
-    c    = 2.*bcoef+3.
-    cm1  = c-1.
-    c2m1 = 2.*c-1.
-    
-    # bulk saturation at critical time
-    asatc = 1.-1./c
-    
-    #initialize storage at initialized time 
-    asat0 = 0
+    #initialize (mx points distributed across the full space)
+    S0 = 1.e-8
     
     #save variables
-    sSave = np.zeros(nForce)
+    sWATDRN = np.zeros(nForce)
+    qWATDRN = np.zeros(nForce)
+    
+    # get temporally constant variables
+    tf = phi*xL/(kH*eta) # time that the drying front reaches the bottom of the hillslope
+    Sc = 1.0 - 1.0/eta   # spatially-averaged relatve storage at time tf
     
     # loop through points on the characteristic curve 
     for iForce in range(nForce):
         
-        # layer average saturation asat0 may be greater than 1
-        #e.g. frost heave but it is not possible for wat_drain
-        asat00 = np.min((1., asat0))
-        #assess if seepage face is saturated at initial time
-        satspf = asat00 >= asatc
+        # compute the time required for spatially-averaged storage to reach the state from the host land model
+        # - only consider case 2: the toe of the hillslope is not fully saturated
+        tr = tf*(S0/Sc)**(1.0 - eta)
         
-        if (satspf):
-          #saturated seepage face at initial time:
-          # compute t0/tc
-          ratiot = c*(1.-asat00)
-          # normalized baseflow rate
-          basflw = 1.-c*c/c2m1*(1.-asat00)
-          #the fraction of the surface that is saturated at t0
-          #varies linearly with t0/tc
-          satsfc= 1.-ratiot
-        else:
-          #unsaturated seepage face at initial time:
-          #calculate tc/t0 instead of t0 to avoid overflow 
-          ratiot = (asat00/asatc)**cm1
-          #normalized baseflow rate
-          basflw = cm1/c2m1*ratiot*asat00/asatc 
-          # the fraction of the surface that is saturated at t0 is zero
-          satsfc = 0.
-                
-        #Compute baseflow in m from normalized baseflow rate
-        # modification by Ala  : I removed the mutiplication by delt
-        #basflw = grksat*basflw*delt
-        basflw = grksat*basflw
+        # compute the storage at the time tr + Delta t
+        t1 = tr + dt
+        S1 = Sc*(tf/t1)**(1.0/(eta - 1.0))
         
-        # update sturation at the end of time step based on mass balance 
-        asat00 = asat00 + (qForce[iForce] - basflw) * delt
+        # compute the lateral flow from mass balance
+        qx = phi*zSoil*(S0 - S1)/dt
+        #print, iForce, S0, S1, [qSave[iForce], qx]*1000.d
         
-        # set asat0 of next time step 
-        asat0  = asat00
+        #update states
+        Sn = S0 + (qForce[iForce] - qx)/(zSoil*phi)
+        S0 = Sn
         
         # save data
-        sSave[iForce]   = asat00
-         
-    return sSave
+        sWATDRN[iForce]   = S0
+        qWATDRN[iForce]   = qx
+    
+    return sWATDRN, qWATDRN 
 
 #%% WATDRN routine 
 # NB: as this experiment is run over one tile, the loop over tiles has been removed  
@@ -308,7 +346,6 @@ def WATDRN(delzw,bcoef,thpora,grksat,grkeff,asat0,iwf, \
     
     return asat1,subflw,basflw,satsfc
 
-
 #%% exav
 #**********************************************************************
 # 
@@ -335,75 +372,72 @@ def exav(x):
     return exav
 
 #%% simulate relative storage and outflow based on Soulis's upscaling method
-
 # critical value of spatially-averaged relative saturation based on eq.(27)
 Sc = 1 - 1/TOPMODEL_exp
 
-S_Soulis1, qx_soulis1, time_sim = Soulis_upscaling_outflow (precip, kH, totalLength1, Sc, soilDepth, porosity, TOPMODEL_exp)
+S_Soulis1, qx_soulis1, time_sim1 = Soulis_upscaling_outflow (precip, kH, totalLength1, Sc, soilDepth, porosity, TOPMODEL_exp)
 
-S_Soulis2, qx_soulis2, time_sim = Soulis_upscaling_outflow (precip, kH, totalLength2, Sc, soilDepth, porosity, TOPMODEL_exp)
+S_Soulis2, qx_soulis2, time_sim2 = Soulis_upscaling_outflow (precip, kH, totalLength2, Sc, soilDepth, porosity, TOPMODEL_exp)
 
-#%% # Set font labels
-font = {'family' : 'Times New Roman',
-         'weight' : 'bold',
-         'size'   : 18}
-matplotlib.rc('font', **font)
 
-#%% calculate interflow based on WATDRN routine 
+#%% Run an experiment based on different hydraulic conductivity Soulis's upscaling method
+
+S_Soulis12, qx_soulis12, time_sim1 = Soulis_upscaling_outflow (precip, 5 * tan_slope, totalLength1, 
+                                                               Sc, soilDepth, porosity, TOPMODEL_exp)
+S_Soulis13, qx_soulis13, time_sim1 = Soulis_upscaling_outflow (precip, 0.5 * tan_slope, totalLength1, 
+                                                               Sc, soilDepth, porosity, TOPMODEL_exp)
+
+S_Soulis22, qx_soulis22, time_sim2 = Soulis_upscaling_outflow (precip, 5 * tan_slope, totalLength2, 
+                                                               Sc, soilDepth, porosity, TOPMODEL_exp)
+S_Soulis23, qx_soulis23, time_sim2 = Soulis_upscaling_outflow (precip, 0.5 * tan_slope, totalLength2, 
+                                                               Sc, soilDepth, porosity, TOPMODEL_exp)
+# plot the results 
+
+fig,axs = plt.subplots(1,2, figsize= (20,20))
+
+axs[0].plot(time_sim , MM_PER_M * qx_soulis1, 'r',  label = '$k_s$ = 1.0  m $h^-1$')
+axs[0].plot(time_sim , MM_PER_M * qx_soulis12, 'b', label = '$k_s$ = 5.0  m $h^-1$')
+axs[0].plot(time_sim , MM_PER_M * qx_soulis13, 'g', label = '$k_s$ = 0.5  m $h^-1$')
+
+axs[0].text(14.8, 1, '$X_{L}$ = 50 m')
+axs[0].legend(fontsize = 14, loc = 'upper left',frameon=False)
+
+axs[1].plot(time_sim , MM_PER_M * qx_soulis2, 'r', label = '$k_s$ = 1.0  m $h^-1$')
+axs[1].plot(time_sim , MM_PER_M * qx_soulis22, 'b',label = '$k_s$ = 5.0  m $h^-1$')
+axs[1].plot(time_sim , MM_PER_M * qx_soulis23, 'g',label = '$k_s$ = 0.5  m $h^-1$')
+
+axs[1].text(14.8, 1, '$X_{L}$ = 10 m')
+axs[1].legend(fontsize = 14, loc = 'upper left',frameon=False)
+
+# set axis and titles 
+axs[0].set_title('Soulis upscaling method')
+axs[0].set_xlabel('Time (days)')
+axs[0].set_ylabel('Hillslope outflow (mm $h^-1$)')
+axs[1].set_title('Soulis upscaling method')
+axs[1].set_xlabel('Time (days)')
+axs[1].set_ylabel('Hillslope outflow (mm $h^-1$)')
+
+axs[0].set_xlim(0,duration)
+axs[0].set_ylim(0,2.5)
+axs[0].grid(alpha=0.5)
+
+axs[1].set_xlim(0,duration)
+axs[1].set_ylim(0,2.5)
+axs[1].grid(alpha=0.5)
+
+# plt.savefig(outdir+'Soulis_hydraulic_conductivity_test.png', format='png', dpi=300)
+# plt.close()
+
+#%% call WATDRN stand-alone to calculate WATDRN interflow 
 # NB: the purpose of this script is produce lateral flow simulation. The relative
-# storage is simulated from synthetic test.  
-#---------------------------------------
-# parameters required for WATDRN 
-# drainage density 
-# this is baed on Soulis et al (2000) and Mekonnen's draft 
-Dd1 = 1/(2*totalLength1)                           # [1/m]
-Dd2 = 1/(2*totalLength2)                           # [1/m]
+# storage is simulated from synthetic test.
 
-# obtain b coefficient  based on Clapp-Hornberger connectivity index  
-bij = (TOPMODEL_exp -3)/2                            # [-]
-
-# calculating xlambda explicitly by equating eq.(21) from Martyn's paper and eq.(24) from Mekonnen's draft 
-# NB: in MESH implementation, the xlambda decay factor is derived from xdrainh
-lambdda = - np.log(1+tan_slope**2)/(soilDepth)     #[1/m]
-lambdda = - lambdda                                # to be consistent with fortran code 
-
-# time step 
-delt = 1.0                                           # [hour]
-#---------------------------------------
-# initialize variables
-# NB: I assumed soil as one single layer 
-ILG = 1                                     # [-] number of tiles 
-IG  = 1                                     # [-] number of soil layers
-IL1 = 1                                     # [-] index of first tile
-IL2 = 1                                     # [-] index of last tile  
-IWF = 1                                     # [-] FLAG governing flat or slope CLASS. IWF = 0 activates flat CLASS
-ztop   = 0                                  # [m]
-delzw  = soilDepth                          # [m]
-ksat   = surfHydCond                        # [m hour^-1]
-xslope = tan_slope                          # [-]
-
-# parameter - will be used to compute xdrainh (the fractional change in horizontal
-# conductivity in a depth change h0) in Vincent's new formula.
-h0 = 1.0 
-
-# Integration of saturated conductivity across the layer -> kl
-#xlambda        = -np.log(xdrainh[i])/h0
-ktop           = ksat * np.exp(lambdda*ztop)      #  [m hour^-1]
-
-# Important note : I commented calculation of kl using exav functions as it 
-# reduces the precision of calculation of grkeff
-#kl             = ktop * exav(lambdda*delzw)       #  [m hour^-1]
-kl             = ktop * np.exp(lambdda*delzw)       #  [m hour^-1]
-
-# calculate grkeff for two hillslope lengths 
-grkeff1         = kl*xslope*2.0*Dd1/(1+xslope**2)  # [hour^-1]
-grkeff2         = kl*xslope*2.0*Dd2/(1+xslope**2)  # [hour^-1]
-
-#thpor_avail[i] = np.max((thlmin[i,j],thpor_avail[i]))
-thpor_avail = porosity 
+#% calling WATDRN storage function for synthetic simulation 
+sWATDRN1, qWATDRN1 = WATDRN_storage (precip, kH, totalLength1, soilDepth, porosity, TOPMODEL_exp, delt)
+sWATDRN2, qWATDRN2 = WATDRN_storage (precip, kH, totalLength2, soilDepth, porosity, TOPMODEL_exp, delt)
 
 # variables related to WATDRN routine 
-p = len(S_Soulis1)
+p = len(sWATDRN1)
 
 asat_t1  = np.zeros(p) 
 subflw1  = np.zeros(p) 
@@ -422,7 +456,7 @@ satfc2   = np.zeros(p)
 # loop over entire time window of simulation for two hillslope lengths 
 for i in range(p):
     # hillslope with length of totalLength1
-    [asat_t1[i], subflw1[i], basflw1[i], satfc1[i]] = WATDRN (delzw,bij,thpor_avail,ksat,grkeff1,S_Soulis1[i], IWF,\
+    [asat_t1[i], subflw1[i], basflw1[i], satfc1[i]] = WATDRN (delzw,bij,thpor_avail,ksat,grkeff1,sWATDRN1[i], IWF,\
                                                              ILG,IL1,IL2,1,delt)
     
     # NB: in the source code of WATDRN the lateral flow is not devided by time step
@@ -430,14 +464,41 @@ for i in range(p):
 
     
     # hillslope with length of totalLength2    
-    [asat_t2[i], subflw2[i],basflw2[i],satfc2[i]] = WATDRN (delzw,bij,thpor_avail,ksat,grkeff2,S_Soulis2[i],IWF,\
+    [asat_t2[i], subflw2[i],basflw2[i],satfc2[i]] = WATDRN (delzw,bij,thpor_avail,ksat,grkeff2,sWATDRN2[i],IWF,\
                                                             ILG,IL1,IL2,1,delt)
     
     subflw2[i] = MM_PER_M * subflw2[i]/delt               # convert to [mm hour^-1]
 
-# plot the results referri
-time_sim = np.linspace(0, duration, len(subflw1))    
+#%% Compare WATDRN storage-discharge with Soulis_upscaling_outflow numerical solution
+fig, axs = plt.subplots(1,2, figsize=(20,20))
 
+axs[0].plot(time_sim , S_Soulis1, '#00007fe6', label = 'storage based on Soulis upscaling')
+axs[0].plot(time_sim , sWATDRN1, 'r',linestyle = '--', label = 'storage based on WATDRN')
+axs[0].text(14.8, 0.4, '$X_{L}$ = 50 m')
+axs[0].legend(fontsize = 14, loc = 'upper left',frameon=False)
+
+axs[1].plot(time_sim, MM_PER_M * qx_soulis1, '#00007fe6', label='outflow based on Soulis upscaling')
+axs[1].plot(time_sim, subflw1, 'r', linestyle = '--',label='outflow based on on WATDRN baseflow')
+axs[1].text(14.8, 1, '$X_{L}$ = 50 m')
+axs[1].legend(fontsize = 14, loc = 'upper left',frameon=False)
+
+# set axis and titles 
+axs[0].set_xlabel('Time (days)')
+axs[0].set_ylabel('Relative storage (-)')
+axs[1].set_xlabel('Time (days)')
+axs[1].set_ylabel('Hillslope outflow (mm $h^-1$)')
+
+axs[0].set_xlim(0,duration)
+axs[0].set_ylim(0,1)
+axs[0].grid(alpha=0.5)
+
+axs[1].set_xlim(0,duration)
+axs[1].set_ylim(0,2.5)
+axs[1].grid(alpha=0.5)
+# plt.savefig(outdir+'WATDRN_storage_outflow.png', format='png', dpi=300)
+# plt.close()
+
+#%% plot results based on WATDRN and Soulis upscaling numerical solution     
 figure,axs = plt.subplots(1,2, figsize= (20,20))
 
 axs[0].plot(time_sim, subflw1, '#ff0000', label='(-lambda) = %f'%lambdda)
@@ -466,77 +527,21 @@ axs[1].set_xlim(0,duration)
 axs[1].set_ylim(0,2.5)
 axs[1].grid(alpha=0.5)
 
-plt.savefig(outdir+'WATDRN_synthetic.png', format='png', dpi=300)
-plt.close()
+# plt.savefig(outdir+'WATDRN_synthetic.png', format='png', dpi=300)
+# plt.close()
 
-#%% plot WATDRN baseflow with lateral flow to see how they are performing 
-figure,axs = plt.subplots(1,1, figsize= (20,20))
-
-axs.plot(time_sim, subflw1, label = 'subflw')
-axs.plot(time_sim, basflw1, label = 'basflw')
-axs.plot(time_sim, basflw1+subflw1, label = 'subflw + basflw')
-axs.text(14.8, 1.05, '$X_{L}$ = 50 m')
-
-axs.grid(alpha=0.5)
-axs.legend(fontsize = 14, loc = 'upper left',frameon=False)
-
-# set axes and title 
-axs.set_title('WATDRN stand-alone simulaiton')
-axs.set_xlim(0,duration)
-axs.set_ylim(0,2.5)
-
-plt.savefig(outdir+'WATDRN_flow.png', format='png', dpi=300)
-plt.close()
-
-#%% calling the WATDRN storage function and compare it Soulis_upscaling_outflow numerical solution
-S_WATDRN = WATDRN_storage(precip, bij,ksat,delt)
-
-fig, axs = plt.subplots(1,1, figsize=(20,20))
-axs.plot(time_sim , S_Soulis1, label = 'storage based Soulis upscaling')
-axs.plot(time_sim , S_WATDRN, label = 'storage based on WATDRN baseflow')
-
-axs.legend(fontsize = 14, loc = 'upper left',frameon=False)
-
-# set axis 
-axs.set_xlim(0,duration)
-axs.set_ylim(0,1)
-axs.grid(alpha=0.5)
-
-#%% compare WATDRN stand-alone with WATDRN derived from eqs(32) and eqs(33) of paper
-qx1 = np.zeros(p)
-qx2 = np.zeros(p)
-
-for i in range(p):
-    # for Hillslope with totalLength1 
-    # eq.(33)
-    tr = ((porosity*totalLength1)/(kH*TOPMODEL_exp))*(S_Soulis1[i]/Sc)**(1-TOPMODEL_exp)
-    tq = tr + delt
-    # eq.(32)
-    S2 = Sc * ((porosity*totalLength1)/(kH*TOPMODEL_exp*tq))**(1/(TOPMODEL_exp-1))
-    qx1[i] = MM_PER_M * np.abs(S2 - S_Soulis1[i]) * porosity * soilDepth/delt
-    
-    # for Hillslope with totalLength2
-    # eq.(33)
-    tr = ((porosity*totalLength2)/(kH*TOPMODEL_exp))*(S_Soulis2[i]/Sc)**(1-TOPMODEL_exp)
-    tq = tr + delt
-    # eq.(32)
-    S2 = Sc * ((porosity*totalLength2)/(kH*TOPMODEL_exp*tq))**(1/(TOPMODEL_exp-1))
-    qx2[i] = MM_PER_M * np.abs(S2 - S_Soulis2[i]) * porosity * soilDepth/delt
-    
-figure,axs = plt.subplots(1,2, figsize= (20,20))
-
-axs[0].plot(time_sim, subflw1, '#ff0000', label='Stand-alone WATDRN')
-axs[0].text(14.8, 1.05, '$X_{L}$ = 50 m')
+#%% compare WATDRN with numerical Soulis's solution 
+fig, axs = plt.subplots(1,2, figsize=(20,20))
+# plot first hillslpe 
+axs[0].plot(time_sim , MM_PER_M * qx_soulis1,'#00007fe6', label = 'Soulis upscaling')
+axs[0].plot(time_sim , subflw1, 'r', linestyle= '--', label = 'WATDRN Stand-alone')
+axs[0].text(14.8, 0.6, '$X_{L}$ = 50 m')
 axs[0].legend(fontsize = 14, loc = 'upper left',frameon=False)
 
-axs[0].plot(time_sim, qx1, '#00007fe6', label='Explicit WATDRN')
-axs[0].legend(fontsize = 14, loc = 'upper left',frameon=False)
-
-axs[1].plot(time_sim, subflw2, '#ff0000', label='Stand-alone WATDRN')
-axs[1].text(14.8, 1.05, '$X_{L}$ = 10 m')
-axs[1].legend(fontsize = 14, loc = 'upper left',frameon=False)
-
-axs[1].plot(time_sim, qx2, '#00007fe6', label='Explicit WATDRN')
+# plot first hillslpe 
+axs[1].plot(time_sim , MM_PER_M * qx_soulis2,'#00007fe6', label = 'Soulis upscaling')
+axs[1].plot(time_sim , subflw2, 'r',linestyle= '--', label = 'WATDRN Stand-alone')
+axs[1].text(14.8, 0.6, '$X_{L}$ = 10 m')
 axs[1].legend(fontsize = 14, loc = 'upper left',frameon=False)
 
 # set axes and title 
@@ -557,96 +562,168 @@ axs[1].set_xlim(0,duration)
 axs[1].set_ylim(0,2.5)
 axs[1].grid(alpha=0.5)
 
-plt.savefig(outdir+'WATDRN_SA_explicit.png', format='png', dpi=300)
-plt.close()    
+# plt.savefig(outdir+'WATDRN_Soulis_synthetic.png', format='png', dpi=300)
+# plt.close()
 
-#%% obtain S based on MoC
-# S_save = np.zeros(240)
+#%% plot WATDRN baseflow with lateral flow to see how they are performing 
+figure,axs = plt.subplots(1,1, figsize= (20,20))
 
-# for i, q in enumerate(precip[0:240]):
-#         if q > 0:
-#             tc = i+1
-#             Smax = (tc * q)/(porosity * soilDepth)
-#             # rewrite eq.(18) based on equation 20
-#             S = ((kinematic_dist * q)/(kH * soilDepth))**(1/TOPMODEL_exp)
-#             S[S>Smax]=Smax
-#             S_save[i] = np.max(S)
-        
-#%% simulate WATDRN based on different xdrainh values 
-# the purpose is to find out how the outflow is responds based on changing values of xdrainh
+axs.plot(time_sim, subflw1, label = 'subflw')
+axs.plot(time_sim, basflw1, label = 'basflw')
+axs.plot(time_sim, basflw1+subflw1, label = 'subflw + basflw')
+axs.text(14.8, 1.05, '$X_{L}$ = 50 m')
 
-# initialize variables  
+axs.grid(alpha=0.5)
+axs.legend(fontsize = 14, loc = 'upper left',frameon=False)
 
-# produce  a range for xdrainh 
-xdrainh = np.linspace(0.05,1.05,11)
+# set axes and title 
+axs.set_title('WATDRN stand-alone simulaiton')
+axs.set_xlim(0,duration)
+axs.set_ylim(0,2.5)
 
-k = len(xdrainh)
+# plt.savefig(outdir+'WATDRN_flow.png', format='png', dpi=300)
+# plt.close()
 
-asat_t1  = np.zeros((p,k)) 
-subflw1  = np.zeros((p,k)) 
-basflw1  = np.zeros((p,k))
-satfc1   = np.zeros((p,k))
+#%% compare WATDRN stand-alone with explicit WATDRN derived from eqs(32) and eqs(33) of paper
+qx1 = np.zeros(p)
+qx2 = np.zeros(p)
 
-asat_t2  = np.zeros((p,k)) 
-subflw2  = np.zeros((p,k)) 
-basflw2  = np.zeros((p,k))
-satfc2   = np.zeros((p,k))
-
-for j in range(k):
+for i in range(p):
+    # for Hillslope with totalLength1 
+    # eq.(33)
+    tf = (porosity*totalLength1)/(kH*TOPMODEL_exp)
+    tr = (tf)*(sWATDRN1[i]/Sc)**(1-TOPMODEL_exp)
+    tq = tr + delt
+    # eq.(32)
+    S2 = Sc * (tf/tq)**(1/(TOPMODEL_exp-1))
+    qx1[i] = MM_PER_M * (sWATDRN1[i] -S2) * porosity * soilDepth/delt
     
-    lambdda        = -np.log(xdrainh[j])/h0
-    ktop           = ksat * np.exp(lambdda*ztop)      #  [m hour^-1]
-    kl             = ktop * np.exp(lambdda*delzw)       #  [m hour^-1]
+    # for Hillslope with totalLength2
+    # eq.(33)
+    tf = (porosity*totalLength2)/(kH*TOPMODEL_exp)
+    tr = (tf)*(sWATDRN2[i]/Sc)**(1-TOPMODEL_exp)
+    tq = tr + delt
+    # eq.(32)
+    S2 = Sc * (tf/tq)**(1/(TOPMODEL_exp-1))
+    qx2[i] = MM_PER_M * (sWATDRN2[i] -S2) * porosity * soilDepth/delt
     
-    # calculate grkeff for two hillslope lengths 
-    grkeff1         = kl*xslope*2.0*Dd1/(1+xslope**2)  # [hour^-1]
-    grkeff2         = kl*xslope*2.0*Dd2/(1+xslope**2)
-    
-    # loop over entire time window of simulation for two hillslope lengths 
-    for i in range(p):
-        # hillslope with length of totalLength1
-        [asat_t1[i,j], subflw1[i,j], basflw1[i,j], satfc1[i,j]] = WATDRN (delzw,bij,thpor_avail,ksat,grkeff1,S_Soulis1[i], IWF,\
-                                                                          ILG,IL1,IL2,1,delt)
-        
-        # NB: in the source code of WATDRN the lateral flow is not devided by time step
-        subflw1[i,j] = MM_PER_M * subflw1[i,j]/delt                # convert to [mm hour^-1]
-    
-        
-        # hillslope with length of totalLength2    
-        [asat_t2[i,j], subflw2[i,j],basflw2[i,j],satfc2[i,j]] = WATDRN (delzw,bij,thpor_avail,ksat,grkeff2,S_Soulis2[i],IWF,\
-                                                                ILG,IL1,IL2,1,delt)
-        
-        subflw2[i,j] = MM_PER_M * subflw2[i,j]/delt               # convert to [mm hour^-1]
-
-
-# plot results 
 figure,axs = plt.subplots(1,2, figsize= (20,20))
 
-for j in range(k):
-    lambdda        = -np.log(xdrainh[j])/h0
-    axs[0].plot(time_sim, subflw1[:,j], label='XDRAINH = %f'%xdrainh[j] + ' or (-lambda) = %f'%lambdda)
-    axs[0].text(1.5, 65, '$X_{L}$ = 50 m')
-    axs[0].legend(fontsize = 10, loc = 'upper right',frameon=False)
+axs[0].plot(time_sim, subflw1, '#ff0000', label='Stand-alone WATDRN')
+axs[0].text(14.8, 1.05, '$X_{L}$ = 50 m')
+axs[0].legend(fontsize = 14, loc = 'upper left',frameon=False)
+
+axs[0].plot(time_sim, qx1, '#00007fe6', linestyle ='--',label='Explicit WATDRN')
+axs[0].legend(fontsize = 14, loc = 'upper left',frameon=False)
+
+axs[1].plot(time_sim, subflw2, '#ff0000', label='Stand-alone WATDRN')
+axs[1].text(14.8, 1.05, '$X_{L}$ = 10 m')
+axs[1].legend(fontsize = 14, loc = 'upper left',frameon=False)
+
+axs[1].plot(time_sim, qx2, '#00007fe6', linestyle ='--',label='Explicit WATDRN')
+axs[1].legend(fontsize = 14, loc = 'upper left',frameon=False)
+
+# set axes and title 
+axs[0].set_title('WATDRN simulaiton')
+axs[1].set_title('WATDRN simulaiton')
+
+axs[0].set_xlabel('Time (days)')
+axs[1].set_xlabel('Time (days)')
+
+axs[0].set_ylabel('Hillslope outflow (mm $h^-1$)')
+axs[1].set_ylabel('Hillslope outflow (mm $h^-1$)')
+
+axs[0].set_xlim(0,duration)
+axs[0].set_ylim(0,2.5)
+axs[0].grid(alpha=0.5)
+
+axs[1].set_xlim(0,duration)
+axs[1].set_ylim(0,2.5)
+axs[1].grid(alpha=0.5)
+
+# plt.savefig(outdir+'WATDRN_SA_explicit.png', format='png', dpi=300)
+# plt.close()    
+
+#%% Analyze the performance of WATDRN based on different xdrainh values 
+# variables related to WATDRN routine 
+#-----------------------------------------------------------------------------
+# NB: based on the derivations I obtained 
+# lambdda         = - np.log(1+tan_slope**2)/(soilDepth)     #[1/m]
+# I should use the xdrainh value equals to 0.9442 and (-lambdda) equals to 0.05742 
+# in order to match numerical simulations 
+# lambdda         = -np.log(0.9442)/h0
+# lambdda         = - lambdda = 0.05742            # to be consistent with fortran code 
+#------------------------------------------------------------------------------
+# create a sample xdrainh values 
+xdrainh = [0.1, 0.45, 0.8, 1]
+
+tf_ref = (porosity*totalLength1)/(kH*TOPMODEL_exp)        # [hour]
+
+for j in range(len(xdrainh)):
+
+    p = len(sWATDRN1)
+    asat_t1_1  = np.zeros(p) 
+    subflw1_1  = np.zeros(p) 
+    basflw1_1  = np.zeros(p)
+    satfc1_1   = np.zeros(p)
     
-    axs[1].plot(time_sim, subflw2[:,j], label='XDRAINH = %f'%xdrainh[j] + ' or (-lambda) = %f'%lambdda)
-    axs[1].text(1.5, 65, '$X_{L}$ = 10 m')
-    axs[1].legend(fontsize = 10, loc = 'upper right',frameon=False)
+    lambdda           = -np.log(xdrainh[j])/h0                    #  [1/m] 
+    ktop              = ksat * np.exp(lambdda*ztop)        #  [m hour^-1]
+    kl                = ktop * np.exp(lambdda*delzw)       #  [m hour^-1]
+    grkeff1_1         = kl*xslope*2.0*Dd1/(1+xslope**2)    #  [hour^-1]
     
-    # set axes
-    axs[0].set_xlabel('Time (days)')
-    axs[1].set_xlabel('Time (days)')
+    # loop over entire time window of simulation for one hillslope lengths 
+    for i in range(p):
+        # # hillslope with length of totalLength1
+        # [asat_t1_1[i], subflw1_1[i], basflw1_1[i], satfc1_1[i]] = WATDRN (delzw,bij,thpor_avail,ksat,grkeff1_1,sWATDRN1[i], IWF,\
+        #                                                           ILG,IL1,IL2,1,delt)
+        
+        # # NB: in the source code of WATDRN the lateral flow is not devided by time step
+        # subflw1_1[i] = MM_PER_M * subflw1_1[i]/delt                # convert to [mm hour^-1] 
+        
+        # eq. (24 Mekonnen et al)
+        tf = (porosity)/(grkeff1_1 * TOPMODEL_exp)
+        # eq. (33)
+        tr = (tf)*(sWATDRN1[i]/Sc)**(1-TOPMODEL_exp)
+        tq = tr + delt
+        # eq.(32)
+        S2 = Sc * (tf/tq)**(1/(TOPMODEL_exp-1))
+        qx1 = MM_PER_M * (sWATDRN1[i] -S2) * porosity * soilDepth/delt
+        
+        asat_t1_1[i] = S2
+        subflw1_1[i] = qx1
     
-    axs[0].set_ylabel('Hillslope outflow (mm $h^-1$)')
-    axs[1].set_ylabel('Hillslope outflow (mm $h^-1$)')
+    figure,axs = plt.subplots(1,2, figsize=(20,20))
+    axs[0].plot(time_sim, sWATDRN1,'#ff0000',  label = 'Saturation at initial time')
+    axs[0].plot(time_sim, asat_t1_1, '#00007fe6',label = 'Saturation at the end of the time step')
+    axs[0].plot(time_sim, asat_t1 ,'#00007fe6' , linestyle = '--', label = 'Saturation at the end of the time step (reference)')
     
+    axs[1].plot(time_sim, subflw1_1, '#00007fe6', label='XDRAINH = %.2f'%xdrainh[j])
+    axs[1].plot(time_sim, subflw1, '#00007fe6' , linestyle = '--', label='XDRAINH (reference)= %.2f'%0.9442)
+    
+    axs[0].text(14.8, 0.95, '$t_{f}$ = %.2f h'%tf, fontsize= 12)
+    axs[0].text(14.8, 0.92, '$t_{f}$ (reference) = %.2f h'%tf_ref, fontsize= 12)
+    
+    axs[0].legend(fontsize = 12, loc = 'upper left',frameon=False)
+    axs[1].legend(fontsize = 12, loc = 'upper right',frameon=False)
+    
+    # axis setting and labels 
     axs[0].set_xlim(0,duration)
-    axs[0].set_ylim(0,70)
+    axs[0].set_ylim(0,1)
     axs[0].grid(alpha=0.5)
     
     axs[1].set_xlim(0,duration)
-    axs[1].set_ylim(0,70)
+    axs[1].set_ylim(0,np.max(subflw1_1)+0.5)
     axs[1].grid(alpha=0.5)
-
-plt.savefig(outdir+'WATDRN_synthetic_xdrainh.png', format='png', dpi=300) 
-plt.close()
-   
+    
+    axs[0].set_title('WATDRN SA simulaiton for $X_{L}$ = 50 m',fontsize= 14)
+    axs[1].set_title('WATDRN SA simulaiton for $X_{L}$ = 50 m', fontsize= 14)
+    
+    axs[0].set_xlabel('Time (days)')
+    axs[1].set_xlabel('Time (days)')
+    
+    axs[0].set_ylabel('Relative storage (-)')
+    axs[1].set_ylabel('Hillslope outflow (mm $h^-1$)')
+    
+    plt.savefig(outdir+'WATDRN_synthetic_xdrainh%d'%(j+1)+'.png', format='png', dpi=300) 
+    plt.close()
