@@ -12,104 +12,26 @@ See also :
 #%% import modules 
 import matplotlib
 import matplotlib.pyplot as plt
-#import xarray as xs 
+import xarray as xs 
 import numpy as np
 
 #%% I/O directory 
+inputdir         = 'interflow.nc'      
 outdir           = 'output/'
- 
-#%% input parameters and setting for synthetic simulations 
-MM_PER_M     = 1000                        # [-]
-S_PER_HOUR   = 3600                        # [-]
 
-TOPMODEL_exp = 3.0                         # [-]
-surfHydCond  = 1.0                         # [m hour^-1]
- 
-tan_slope    = 0.3                         # [-]
-soilDepth    = 1.5                         # [m] 
-porosity     = 0.25                        # [-]
-qRain        = 0.002                       # [m hour^-1] 
+#%% reading the input file from stand-alone WATDRN Fortran 
+#variables dimensiosn 
+VAR_NAME  ="interflow"
+Level_NAME ="level"
+Time_NAME  ="time"
 
-totalLength1 = 50.                         # [m]
-totalLength2 = 10.                         # [m]
+data = xs.open_dataset(inputdir)
+data.close()
 
-hillWidth    = 100.                        # [m]
-#domain_area = hillWidth * totalLength
+data_interflow = data[VAR_NAME].values 
 
-hill_dist1 = np.arange(1, 1+totalLength1)  
-hill_dist2 = np.arange(1, 1+totalLength2)
-
-kinematic_dist  = np.linspace(0, totalLength1, num=1000)
-kinematic_dist2 = np.linspace(0, totalLength2, num=1000)
-
-# construct precipitation
-precip= np.zeros(480)
-precip[0:240]= 0.002                       #[m hour^-1]
-
-# Horizontal conductivity 
-kH = surfHydCond * tan_slope               #[m hour^-1]
-
-# time duration of simulation  
-duration  = 20                              #[days]            
-
-#%% set variable and parameters required for WATDRN 
-# parameters required for WATDRN
-# drainage density 
-# this is baed on Soulis et al (2000) and Mekonnen's draft 
-Dd1 = 1/(2*totalLength1)                           # [1/m]
-Dd2 = 1/(2*totalLength2)                           # [1/m]
-
-# obtain b coefficient  based on Clapp-Hornberger connectivity index  
-bij = (TOPMODEL_exp -3)/2                            # [-]
-
-# calculating xlambda explicitly by equating eq.(21) from Martyn's paper and eq.(24) from Mekonnen's draft 
-# NB: in MESH implementation, the xlambda decay factor is derived from xdrainh
-lambdda = - np.log(1+tan_slope**2)/(soilDepth)     #[1/m]
-lambdda = - lambdda                                # to be consistent with fortran code 
-
-# time step 
-delt = 1.0                                           # [hour]
-#---------------------------------------
-# initialize variables
-# NB: I assumed soil as one single layer 
-ILG = 1                                     # [-] number of tiles 
-IG  = 1                                     # [-] number of soil layers
-IL1 = 1                                     # [-] index of first tile
-IL2 = 1                                     # [-] index of last tile  
-IWF = 1                                     # [-] FLAG governing flat or slope CLASS. IWF = 0 activates flat CLASS
-ztop   = 0                                  # [m]
-delzw  = soilDepth                          # [m]
-ksat   = surfHydCond                        # [m hour^-1]
-xslope = tan_slope                          # [-]
-
-# parameter - will be used to compute xdrainh (the fractional change in horizontal
-# conductivity in a depth change h0) in Vincent's new formula.
-h0 = 1.0 
-
-# Integration of saturated conductivity across the layer -> kl
-# Important note :xlambda is derived based on function of slope and soil Depth instead of xdrainh 
-#xlambda        = -np.log(xdrainh[i])/h0 #  
-ktop           = ksat * np.exp(lambdda*ztop)      #  [m hour^-1]
-
-# Important note : I commented calculation of kl using exav functions as it 
-# reduces the precision of calculation of grkeff
-#kl             = ktop * exav(lambdda*delzw)       #  [m hour^-1]
-kl             = ktop * np.exp(lambdda*delzw)       #  [m hour^-1]
-
-# calculate grkeff for two hillslope lengths 
-grkeff1         = kl*xslope*2.0*Dd1/(1+xslope**2)  # [hour^-1]
-grkeff2         = kl*xslope*2.0*Dd2/(1+xslope**2)  # [hour^-1]
-
-#thpor_avail[i] = np.max((thlmin[i,j],thpor_avail[i]))
-thpor_avail = porosity 
-
-time_sim = np.linspace(0, duration, len(precip))
-
-#%% # Set font labels
-font = {'family' : 'Times New Roman',
-         'weight' : 'bold',
-         'size'   : 18}
-matplotlib.rc('font', **font)
+subflw1_fortran    = data_interflow[0,1,:]
+subflw2_fortran    = data_interflow[0,5,:]
 
 #%% Soulis's upscaling outflow (section 2.5)
 # NB: This function is based on Martyn's solution    
@@ -346,6 +268,7 @@ def WATDRN(delzw,bcoef,thpora,grksat,grkeff,asat0,iwf, \
     
     return asat1,subflw,basflw,satsfc
 
+
 #%% exav
 #**********************************************************************
 # 
@@ -370,6 +293,100 @@ def exav(x):
     else: 
         exav = 1.0-x/2.0
     return exav
+
+#%% input parameters and setting for synthetic simulations 
+MM_PER_M     = 1000                        # [-]
+S_PER_HOUR   = 3600                        # [-]
+
+TOPMODEL_exp = 3.0                         # [-]
+surfHydCond  = 1.0                         # [m hour^-1]
+ 
+tan_slope    = 0.3                         # [-]
+soilDepth    = 1.5                         # [m] 
+porosity     = 0.25                        # [-]
+qRain        = 0.002                       # [m hour^-1] 
+
+totalLength1 = 50.                         # [m]
+totalLength2 = 10.                         # [m]
+
+hillWidth    = 100.                        # [m]
+#domain_area = hillWidth * totalLength
+
+hill_dist1 = np.arange(1, 1+totalLength1)  
+hill_dist2 = np.arange(1, 1+totalLength2)
+
+kinematic_dist  = np.linspace(0, totalLength1, num=1000)
+kinematic_dist2 = np.linspace(0, totalLength2, num=1000)
+
+# construct precipitation
+precip= np.zeros(480)
+precip[0:240]= qRain                      #[m hour^-1]
+
+# Horizontal conductivity 
+kH = surfHydCond * tan_slope               #[m hour^-1]
+
+# time duration of simulation  
+duration  = 20                              #[days]            
+
+#%% set variable and parameters required for WATDRN 
+# parameters required for WATDRN
+# drainage density 
+# this is baed on Soulis et al (2000) and Mekonnen's draft 
+Dd1 = 1/(2*totalLength1)                           # [1/m]
+Dd2 = 1/(2*totalLength2)                           # [1/m]
+
+# obtain b coefficient  based on Clapp-Hornberger connectivity index  
+bij = (TOPMODEL_exp -3)/2                            # [-]
+
+# calculating xlambda explicitly by equating eq.(21) from Martyn's paper and eq.(24) from Mekonnen's draft 
+# NB: in MESH implementation, the xlambda decay factor is derived from xdrainh
+lambdda = - np.log(1+tan_slope**2)/(soilDepth)     #[1/m]
+lambdda = - lambdda                                # to be consistent with fortran code 
+
+# time step 
+delt = 1.0                                           # [hour]
+#---------------------------------------
+# initialize variables
+# NB: I assumed soil as one single layer 
+ILG = 1                                     # [-] number of tiles 
+IG  = 1                                     # [-] number of soil layers
+IL1 = 1                                     # [-] index of first tile
+IL2 = 1                                     # [-] index of last tile  
+IWF = 1                                     # [-] FLAG governing flat or slope CLASS. IWF = 0 activates flat CLASS
+ztop   = 0                                  # [m]
+delzw  = soilDepth                          # [m]
+ksat   = surfHydCond                        # [m hour^-1]
+xslope = tan_slope                          # [-]
+
+# parameter - will be used to compute xdrainh (the fractional change in horizontal
+# conductivity in a depth change h0) in Vincent's new formula.
+h0 = 1.0 
+
+# Integration of saturated conductivity across the layer -> kl
+# Important note :xlambda is derived based on function of slope and soil Depth instead of xdrainh 
+#xlambda        = -np.log(xdrainh[i])/h0 #  
+ktop           = ksat * np.exp(lambdda*ztop)      #  [m hour^-1]
+
+# Important note : I commented calculation of kl using exav functions as it 
+# reduces the precision of calculation of grkeff
+#kl             = ktop * exav(lambdda*delzw)       #  [m hour^-1]
+kl             = ktop * np.exp(lambdda*delzw)       #  [m hour^-1]
+
+# calculate grkeff for two hillslope lengths 
+grkeff1         = kl*xslope*2.0*Dd1/(1+xslope**2)  # [hour^-1]
+grkeff2         = kl*xslope*2.0*Dd2/(1+xslope**2)  # [hour^-1]
+
+#thpor_avail[i] = np.max((thlmin[i,j],thpor_avail[i]))
+thpor_avail = porosity 
+
+time_sim = np.linspace(0, duration, len(precip))
+
+#%% # Set font labels
+font = {'family' : 'Times New Roman',
+         'weight' : 'bold',
+         'size'   : 18}
+matplotlib.rc('font', **font)
+
 
 #%% simulate relative storage and outflow based on Soulis's upscaling method
 # critical value of spatially-averaged relative saturation based on eq.(27)
@@ -564,6 +581,43 @@ axs[1].grid(alpha=0.5)
 
 # plt.savefig(outdir+'WATDRN_Soulis_synthetic.png', format='png', dpi=300)
 # plt.close()
+
+#%% compare WATDRN stand-alone fortran and python 
+fig, axs = plt.subplots(1,2, figsize=(20,20))
+# plot first hillslpe 
+axs[0].plot(time_sim , subflw1_fortran,'#00007fe6', label = 'Fortran WATDRN Stand-alone')
+axs[0].plot(time_sim , subflw1, 'r', linestyle= '--', label = 'Python WATDRN Stand-alone')
+axs[0].text(14.8, 0.6, '$X_{L}$ = 50 m')
+axs[0].legend(fontsize = 14, loc = 'upper left',frameon=False)
+
+# plot first hillslpe 
+axs[1].plot(time_sim , subflw2_fortran,'#00007fe6', label = 'Fortran WATDRN Stand-alone')
+axs[1].plot(time_sim , subflw2, 'r',linestyle= '--', label = 'Python WATDRN Stand-alone')
+axs[1].text(14.8, 0.6, '$X_{L}$ = 10 m')
+axs[1].legend(fontsize = 14, loc = 'upper left',frameon=False)
+
+# set axes and title 
+axs[0].set_title('WATDRN simulaiton')
+axs[1].set_title('WATDRN simulaiton')
+
+axs[0].set_xlabel('Time (days)')
+axs[1].set_xlabel('Time (days)')
+
+axs[0].set_ylabel('Hillslope outflow (mm $h^-1$)')
+axs[1].set_ylabel('Hillslope outflow (mm $h^-1$)')
+
+axs[0].set_xlim(0,duration)
+axs[0].set_ylim(0,2.5)
+axs[0].grid(alpha=0.5)
+
+axs[1].set_xlim(0,duration)
+axs[1].set_ylim(0,2.5)
+axs[1].grid(alpha=0.5)
+
+plt.savefig(outdir+'WATDRN_Fortran_Python_synthetic.png', format='png', dpi=300)
+plt.close()
+
+
 
 #%% plot WATDRN baseflow with lateral flow to see how they are performing 
 figure,axs = plt.subplots(1,1, figsize= (20,20))
