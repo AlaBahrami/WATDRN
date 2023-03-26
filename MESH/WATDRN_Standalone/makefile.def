@@ -22,5 +22,5 @@ VPATH=	$(DIR_REPO)/src: \
 
 #Modules 
 OBJECTS=    check_stat.o nc_io_file.o \
-			WATDRN.o WATROF.o \
-			WATDRN_SA.o 
+			WATDRN_storage.o WATDRN.o WATDRN_SA_simulation.o
+			 

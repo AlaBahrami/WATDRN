@@ -1,2 +1,2 @@
 #!/bin/sh
-make gfortran netcdf 
+make gfortran debug netcdf 

@@ -1,7 +1,7 @@
 !> AUTHOR : Ala Bahrami
 !> DATE CREATION : 01-25-2023
 !> DATES MODIFICATIONS : -
-!> DESCRIPTION : The purpose of this module is to write/read CLASSW variables in the NetCDF format  
+!> DESCRIPTION : The purpose of this module is to write CLASSW variables in a NetCDF format  
 !> per time step which are passed to the WATROF subroutine inside the CLASSW module for 4 subarea 
 !> categories (CS, GS, C, G) 
 !>               
@@ -47,14 +47,16 @@ module nc_io_file
 		! We will write THLQ,level and time fields. 
 		! Labels  
 		character (len = *), parameter :: TILE_NAME  = "tile"
-		character (len = *), parameter :: THLQ_NAME  ="soil_moisture"
+		!character (len = *), parameter :: THLQ_NAME  ="soil_moisture"
+		character (len = *), parameter :: THLQ_NAME  ="interflow"
 		character (len = *), parameter :: Level_NAME ="level"
 		character (len = *), parameter :: Time_NAME  ="time"
 		
 		! It's good practice for each variable to carry a "units" attribute.
 		character (len = *), parameter :: UNITS       = "units"
 		character (len = *), parameter :: TILE_UNITS  = "-"
-		character (len = *), parameter :: Time_UNITS  = "minutes"
+		!character (len = *), parameter :: Time_UNITS  = "minutes"
+		character (len = *), parameter :: Time_UNITS  = "hours"
 		character (len = *), parameter :: Level_UNITS = "-"
 		character (len = *), parameter :: THLQ_UNITS  = "mm"	
 
@@ -133,26 +135,5 @@ module nc_io_file
 		! Close the file.
 		call check( nf90_close(ncid))
 	end subroutine
-	
-	!> Read the input file 
-	subroutine nc4_read_data_file(file_name, array, var_name)
-        character(len=*), intent(in)    :: file_name
-        real,          intent(inout)    :: array(:, :, :)
-        character(len=*), intent(in)    :: var_name
-        integer                         :: ncid, varid
-
-        ! Open the NetCDF file read-only.
-        call check(nf90_open(file_name, NF90_NOWRITE, ncid))
-
-        ! Get the id of the data variable.
-        call check(nf90_inq_varid(ncid, var_name, varid))
-
-        ! Read data.
-        call check(nf90_get_var(ncid, varid, array))
-
-        ! Close file.
-        call check(nf90_close(ncid))
-		
-    end subroutine nc4_read_data_file
 	
 end module 

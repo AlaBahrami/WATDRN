@@ -160,7 +160,7 @@ endif
 endif
 
 # Output: sa_mesh.
-OUT=watdrn_sa
+OUT=watdrn_sa_simulate
 
 # If MPI is enabled, switch to OMPI compiler and rename output.
 # Otherwise add MPI stub to 'OBJECTS'.
@@ -171,7 +171,7 @@ else
 FC=mpifort
 endif
 CC=mpicc
-OUT=mpi_watdrn_sa
+OUT=mpi_watdrn_sa_simulate
 else
 #OBJECTS:=	mpi_stub.o $(OBJECTS)
 endif
@@ -182,7 +182,7 @@ BIN_DEL=del
 LLINK=-static
 FC=gfortran
 CC=gcc
-OUT=watdrn_sa
+OUT=watdrn_sa_simulate
 else
 BIN_DEL=rm
 endif
